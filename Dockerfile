@@ -62,9 +62,12 @@ COPY submodules/agent-browser /tmp/agent-browser
 RUN cd /tmp/agent-browser && \
     npm install --omit=dev --no-audit --no-fund 2>/dev/null && \
     npm install -g . 2>/dev/null && \
+    cd / && \
     rm -rf /tmp/agent-browser && \
     # Also install lighthouse from npm registry (no private fork)
     npm install -g lighthouse@13 2>/dev/null || npm install -g lighthouse 2>/dev/null
+
+
 
 # ── Python app + Scrapling from local submodule ───────────────────
 WORKDIR /app

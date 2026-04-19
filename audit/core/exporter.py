@@ -60,8 +60,10 @@ async def export_pdf(result: AuditResult, path: Path) -> None:
 
     html_content = export_html(result)
 
+    import os
     async with async_playwright() as p:
         browser = await p.chromium.launch(
+            executable_path=os.environ.get("CHROME_PATH"),
             headless=True,
             args=["--no-sandbox", "--disable-setuid-sandbox"]
         )
