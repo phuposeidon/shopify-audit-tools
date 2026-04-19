@@ -40,3 +40,4 @@ include = ["audit*"]
 
 [tool.setuptools.package-data]
 "audit.ui" = ["*.tcss", "*.html"]
+"audit.templates" = ["*.html"]
