@@ -30,7 +30,7 @@ dependencies = [
 ]
 
 [project.scripts]
-audit     = "audit.cli:app"
+audit     = "audit.cli:main"
 audit-ui  = "audit.tui:main"
 audit-web = "audit.server:main"
 
