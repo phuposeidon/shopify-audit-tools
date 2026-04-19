@@ -284,4 +284,5 @@ audit-web  # → http://localhost:8080
 
 ## License
 
-Copyright (c) 2025-present phuposeidon. All rights reserved. See [LICENSE](LICENSE).
+MIT © [phuposeidon](https://github.com/phuposeidon) — see [LICENSE](LICENSE) for details.
+
