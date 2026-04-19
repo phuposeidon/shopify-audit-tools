@@ -1,7 +1,9 @@
 """
-Tier 0 — Scrapling: bot-check, robots.txt, JSON-LD schema, Storefront MCP.
+Tier 0 — Scrapling: bot-check, robots.txt, JSON-LD schema,
+           Storefront MCP (AI shopping agents) + Dev MCP (AI Toolkit).
 Runs as GPTBot + Google-Extended to simulate real AI agent access.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -77,6 +79,7 @@ async def run_tier0(url: str) -> tuple[AIAccessStatus, list[str]]:
         perplexitybot_allowed=robots_result.get("perplexitybot"),
         mcp_detected=mcp_result.get("detected", False),
         mcp_endpoint=mcp_result.get("endpoint"),
+        mcp_type=mcp_result.get("mcp_type"),          # "storefront" | "dev" | None
         has_product_schema=schema_result.get("has_product_schema", False),
         gtin_in_schema=schema_result.get("gtin"),
         brand_in_schema=schema_result.get("brand"),
@@ -84,6 +87,7 @@ async def run_tier0(url: str) -> tuple[AIAccessStatus, list[str]]:
         robots_bonus=bonus,
     )
     return status, errors
+
 
 
 # ── robots.txt parser ─────────────────────────────────────────────
@@ -204,21 +208,85 @@ async def _extract_schema(url: str) -> dict:
     return result
 
 
-# ── Storefront MCP detector ───────────────────────────────────────
+# ── Storefront MCP + Dev MCP detector ────────────────────────────
 
 async def _check_storefront_mcp(base_url: str) -> dict:
-    """Check for Shopify Storefront MCP endpoint."""
-    candidates = [
+    """
+    Detect both Storefront MCP (for AI shopping agents like ChatGPT, Perplexity)
+    and Shopify AI Toolkit Dev MCP (for developer AI tools).
+
+    Storefront MCP: allows AI agents to query products without HTML crawling.
+    Dev MCP:        @shopify/dev-mcp — connects IDE AI tools to Shopify APIs.
+
+    Returns:
+        detected: bool
+        endpoint: str | None
+        mcp_type: "storefront" | "dev" | "both" | None
+    """
+    storefront_candidates = [
+        # Shopify official Storefront MCP discovery
         f"{base_url}/.well-known/shopify-mcp.json",
-        f"{base_url}/api/mcp",
+        # Generic MCP discovery
         f"{base_url}/.well-known/mcp.json",
+        # Shopify Storefront API / MCP route
+        f"{base_url}/api/2025-01/graphql.json",   # Storefront API (public)
     ]
+    dev_mcp_candidates = [
+        # Shopify AI Toolkit Dev MCP server — usually local but some stores expose it
+        f"{base_url}/admin/api/2025-01/graphql.json",
+        # Discovery endpoint for Dev MCP
+        f"{base_url}/.well-known/shopify-dev-mcp.json",
+    ]
+
+    storefront_detected = False
+    dev_detected = False
+    endpoint = None
+
     async with httpx.AsyncClient(timeout=httpx.Timeout(5.0), follow_redirects=False) as client:
-        for candidate in candidates:
+        # Storefront MCP checks
+        for candidate in storefront_candidates:
             try:
                 resp = await client.get(candidate)
                 if resp.status_code == 200:
-                    return {"detected": True, "endpoint": candidate}
+                    # Confirm it's actually MCP / Storefront API by checking content
+                    body = resp.text[:500]
+                    if any(kw in body for kw in ["mcp", "graphql", "storefront", "Shopify"]):
+                        storefront_detected = True
+                        endpoint = candidate
+                        break
+                # Some stores return 401 on Storefront API — still means it exists
+                elif resp.status_code == 401 and "graphql" in candidate:
+                    storefront_detected = True
+                    endpoint = candidate
+                    break
             except Exception:
                 continue
-    return {"detected": False, "endpoint": None}
+
+        # Dev MCP checks (Shopify AI Toolkit)
+        # Dev MCP endpoint responds to OPTIONS with CORS + MCP headers
+        for candidate in dev_mcp_candidates:
+            try:
+                resp = await client.options(candidate)
+                mcp_headers = {
+                    k.lower(): v for k, v in resp.headers.items()
+                    if "mcp" in k.lower() or "shopify" in k.lower()
+                }
+                if mcp_headers or resp.status_code in (200, 204):
+                    dev_detected = True
+                    if not endpoint:
+                        endpoint = candidate
+                    break
+            except Exception:
+                continue
+
+    if storefront_detected and dev_detected:
+        mcp_type = "both"
+    elif storefront_detected:
+        mcp_type = "storefront"
+    elif dev_detected:
+        mcp_type = "dev"
+    else:
+        mcp_type = None
+
+    detected = storefront_detected or dev_detected
+    return {"detected": detected, "endpoint": endpoint, "mcp_type": mcp_type}

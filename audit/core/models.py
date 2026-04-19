@@ -114,6 +114,7 @@ class AIAccessStatus:
     perplexitybot_allowed: Optional[bool] = None
     mcp_detected: bool = False
     mcp_endpoint: Optional[str] = None
+    mcp_type: Optional[str] = None
     has_product_schema: bool = False
     gtin_in_schema: Optional[str] = None
     brand_in_schema: Optional[str] = None

@@ -13,6 +13,9 @@ from audit.platform.detector import detect_platform, is_auditable_url
 from audit.tiers.tier0_scrapling import run_tier0
 from audit.tiers.tier1_browser import run_tier1
 from audit.tiers.tier2_lighthouse import LighthouseResult, run_tier2
+from audit.adapters.shopify_graphql import ShopifyGraphQLClient, ShopifyProductData
+from urllib.parse import urlparse
+
 
 
 async def run_audit(
@@ -54,17 +57,23 @@ async def run_audit(
 
     t0 = time.perf_counter()
 
+    # ── Initialize GraphQL Client ─────────────────────────────────
+    shop_domain = urlparse(url).netloc
+    gql_client = ShopifyGraphQLClient(shop_domain=shop_domain)
+
     # ── Run all tiers in parallel ─────────────────────────────────
     tier0_task = asyncio.create_task(run_tier0(url))
     tier1_task = asyncio.create_task(run_tier1(url) if not skip_browser else _noop_browser())
     tier2_task = asyncio.create_task(run_tier2(url, device) if not skip_lighthouse else _noop_lighthouse())
     platform_task = asyncio.create_task(detect_platform(url))
+    gql_task = asyncio.create_task(gql_client.get_product(url) if gql_client._available else _noop_gql())
 
     # Gather with independent error handling
     results = await asyncio.gather(
-        tier0_task, tier1_task, tier2_task, platform_task,
+        tier0_task, tier1_task, tier2_task, platform_task, gql_task,
         return_exceptions=True,
     )
+
 
     errors: list[str] = []
     from audit.tiers.tier0_scrapling import run_tier0 as _  # noqa: F401
@@ -89,6 +98,23 @@ async def run_audit(
     if isinstance(results[3], Exception):
         errors.append(f"platform: {results[3]}")
 
+    gql = results[4] if not isinstance(results[4], Exception) else ShopifyProductData(available=False)
+    if isinstance(results[4], Exception):
+        errors.append(f"gql: {results[4]}")
+    if gql.available:
+        # Augment missing data with GraphQL rich data
+        has_gtin = has_gtin or gql.has_gtin
+        has_brand = has_brand or bool(gql.vendor)
+        has_return_policy = has_return_policy or gql.has_return_policy
+        description_words = max(description_words, gql.description_words)
+        
+        # Also update ai_status so it shows up in reports
+        if gql.gtin and not ai_status.gtin_in_schema:
+            ai_status.gtin_in_schema = gql.gtin
+            ai_status.has_product_schema = True  # Proxy to give schema points
+        if gql.vendor and not ai_status.brand_in_schema:
+            ai_status.brand_in_schema = gql.vendor
+
     # ── Score calculation ─────────────────────────────────────────
     score, issues, bot_blocked = calculate_score(
         lh, browser, ai_status,
@@ -99,6 +125,7 @@ async def run_audit(
     )
 
     duration_ms = round((time.perf_counter() - t0) * 1000)
+
     bonus_info = f"robots +{ai_status.robots_bonus}pts | MCP: {'✓' if ai_status.mcp_detected else '—'} | schema: {'✓' if ai_status.has_product_schema else '—'}"
 
     return AuditResult(
@@ -128,3 +155,7 @@ async def _noop_browser():
 
 async def _noop_lighthouse():
     return LighthouseResult(available=False, errors=["skipped"])
+
+
+async def _noop_gql():
+    return ShopifyProductData(available=False, errors=["No credentials"])
