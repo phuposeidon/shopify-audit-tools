@@ -1,0 +1,27 @@
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.env
+reports/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+*.log
+.DS_Store
+
+# Exclude nested .git from submodules (keep source, skip history)
+submodules/Scrapling/.git/
+submodules/agent-browser/.git/
+
+# Exclude submodule dev/test artifacts
+submodules/Scrapling/tests/
+submodules/Scrapling/docs/
+submodules/agent-browser/tests/
+submodules/agent-browser/__tests__/
+submodules/agent-browser/node_modules/

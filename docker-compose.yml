@@ -1,0 +1,81 @@
+version: "3.9"
+
+# ── Shared Chrome flags for all services ─────────────────────────
+x-chrome-env: &chrome-env
+  CHROME_PATH: /usr/bin/chromium
+  AGENT_BROWSER_PATH: /usr/local/bin/agent-browser
+  PYTHONUNBUFFERED: "1"
+
+# ── Shared Chrome sandbox workaround ─────────────────────────────
+x-chrome-security: &chrome-security
+  cap_add:
+    - SYS_ADMIN
+  security_opt:
+    - seccomp:unconfined
+
+services:
+
+  # ── CLI audit: one-shot, exits after completion ───────────────
+  # Usage: docker compose run --rm audit https://url
+  # Usage: docker compose run --rm audit https://url --json
+  # Usage: docker compose run --rm audit --help
+  audit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: shopify-audit-tools:latest
+    environment:
+      <<: *chrome-env
+    volumes:
+      - ./reports:/app/reports
+      - ./urls.txt:/app/urls.txt:ro  # for batch mode
+    <<: *chrome-security
+    tty: false        # set to true for TUI mode
+    stdin_open: false # set to true for TUI mode
+    network_mode: host
+
+  # ── Interactive TUI: full-screen terminal app ─────────────────
+  # Usage: docker compose run --rm tui
+  tui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: shopify-audit-tools:latest
+    entrypoint: ["audit-ui"]
+    environment:
+      <<: *chrome-env
+      TERM: xterm-256color
+      COLORTERM: truecolor
+    volumes:
+      - ./reports:/app/reports
+    <<: *chrome-security
+    tty: true
+    stdin_open: true
+    network_mode: host
+
+  # ── Web server: REST API + HTML UI ────────────────────────────
+  # Usage: docker compose up web
+  # Open:  http://localhost:8080
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+    image: shopify-audit-tools:web
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      <<: *chrome-env
+      MAX_CONCURRENT_AUDITS: "${MAX_WORKERS:-2}"
+    volumes:
+      - ./reports:/app/reports
+    <<: *chrome-security
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

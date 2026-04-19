@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "shopify-audit-tools"
+version = "0.1.0"
+description = "AI Visibility Audit Tool for ecommerce — CLI + TUI + Web UI"
+requires-python = ">=3.10"
+dependencies = [
+    # CLI + Rich output
+    "typer[all]>=0.12.0",
+    "rich>=13.0.0",
+    # Interactive TUI
+    "textual>=0.61.0",
+    # HTTP client (async)
+    "httpx>=0.27.0",
+    # HTML/robots.txt parsing
+    "beautifulsoup4>=4.12.0",
+    "lxml>=5.0.0",
+    # NOTE: scrapling is installed from submodules/Scrapling (private fork)
+    # Web server mode (FastAPI)
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
+    "python-multipart>=0.0.9",
+    # Config
+    "python-dotenv>=1.0.0",
+]
+
+[project.scripts]
+audit     = "audit.cli:app"
+audit-ui  = "audit.tui:main"
+audit-web = "audit.server:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["audit*"]
+
+[tool.setuptools.package-data]
+"audit.ui" = ["*.tcss", "*.html"]

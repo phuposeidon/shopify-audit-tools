@@ -1,0 +1,9 @@
+[submodule "submodules/Scrapling"]
+	path = submodules/Scrapling
+	url = git@github.com:phuposeidon/Scrapling.git
+	branch = main
+
+[submodule "submodules/agent-browser"]
+	path = submodules/agent-browser
+	url = git@github.com:phuposeidon/agent-browser.git
+	branch = main
