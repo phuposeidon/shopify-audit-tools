@@ -118,6 +118,18 @@
                         {{ (result.cwv.fcp / 1000) | round(2) ~ 's' if result.cwv.fcp else '—' }}
                     </span>
                 </li>
+                <li class="flex justify-between items-center">
+                    <span class="text-sm font-medium text-slate-400">TBT (Total Blocking Time)</span>
+                    <span class="font-semibold text-slate-600">
+                        {{ result.cwv.tbt | round(0) ~ 'ms' if result.cwv.tbt is not none else '—' }}
+                    </span>
+                </li>
+                <li class="flex justify-between items-center">
+                    <span class="text-sm font-medium text-slate-400">TTFB (Time to First Byte)</span>
+                    <span class="font-semibold text-slate-600">
+                        {{ result.cwv.ttfb | round(0) ~ 'ms' if result.cwv.ttfb is not none else '—' }}
+                    </span>
+                </li>
             </ul>
         </div>
 
@@ -138,6 +150,12 @@
                     </span>
                 </li>
                 <li class="flex justify-between items-center">
+                    <span class="text-sm font-medium">PerplexityBot Access</span>
+                    <span class="{{ 'text-green-600' if result.ai_access.perplexitybot_allowed else 'text-red-500' }}">
+                        {{ "Allowed ✅" if result.ai_access.perplexitybot_allowed else "Blocked 🔴" }}
+                    </span>
+                </li>
+                <li class="flex justify-between items-center">
                     <span class="text-sm font-medium">Model Context Protocol (MCP)</span>
                     <span class="{{ 'text-green-600' if result.ai_access.mcp_detected else 'text-slate-400' }}">
                         {{ "Detected ✅ (" ~ result.ai_access.mcp_type ~ ")" if result.ai_access.mcp_detected else "Not Found ⚪" }}
@@ -155,9 +173,46 @@
                         {{ result.ai_access.gtin_in_schema if result.ai_access.gtin_in_schema else "Missing 🔴" }}
                     </span>
                 </li>
+                <li class="flex justify-between items-center text-sm">
+                    <span class="font-medium text-slate-400 ml-4 border-l-2 border-slate-200 pl-2">Brand Data</span>
+                    <span class="{{ 'text-green-600' if result.ai_access.brand_in_schema else 'text-red-500' }}">
+                        {{ result.ai_access.brand_in_schema if result.ai_access.brand_in_schema else "Missing 🔴" }}
+                    </span>
+                </li>
+                <li class="flex justify-between items-center text-sm">
+                    <span class="font-medium text-slate-400 ml-4 border-l-2 border-slate-200 pl-2">Price Data</span>
+                    <span class="{{ 'text-green-600' if result.ai_access.price_in_schema else 'text-red-500' }}">
+                        {{ result.ai_access.price_in_schema if result.ai_access.price_in_schema else "Missing 🔴" }}
+                    </span>
+                </li>
             </ul>
         </div>
     </div>
+
+    <!-- Lighthouse Scores -->
+    {% if result.lh_performance is not none %}
+    <div class="mb-12">
+        <h2 class="text-lg font-bold border-b border-slate-200 pb-2 mb-4">Lighthouse Analysis</h2>
+        <div class="grid grid-cols-4 gap-4">
+            <div class="p-4 rounded-lg bg-slate-50 border {{ 'border-green-200' if result.lh_performance >= 90 else 'border-orange-200' if result.lh_performance >= 50 else 'border-red-200' }}">
+                <p class="text-xs font-semibold text-slate-500 mb-1 uppercase">Performance</p>
+                <p class="text-2xl font-bold {{ 'text-green-600' if result.lh_performance >= 90 else 'text-orange-500' if result.lh_performance >= 50 else 'text-red-600' }}">{{ result.lh_performance }}</p>
+            </div>
+            <div class="p-4 rounded-lg bg-slate-50 border {{ 'border-green-200' if result.lh_accessibility >= 90 else 'border-orange-200' if result.lh_accessibility >= 50 else 'border-red-200' }}">
+                <p class="text-xs font-semibold text-slate-500 mb-1 uppercase">Accessibility</p>
+                <p class="text-2xl font-bold {{ 'text-green-600' if result.lh_accessibility >= 90 else 'text-orange-500' if result.lh_accessibility >= 50 else 'text-red-600' }}">{{ result.lh_accessibility }}</p>
+            </div>
+            <div class="p-4 rounded-lg bg-slate-50 border {{ 'border-green-200' if result.lh_best_practices >= 90 else 'border-orange-200' if result.lh_best_practices >= 50 else 'border-red-200' }}">
+                <p class="text-xs font-semibold text-slate-500 mb-1 uppercase">Best Practices</p>
+                <p class="text-2xl font-bold {{ 'text-green-600' if result.lh_best_practices >= 90 else 'text-orange-500' if result.lh_best_practices >= 50 else 'text-red-600' }}">{{ result.lh_best_practices }}</p>
+            </div>
+            <div class="p-4 rounded-lg bg-slate-50 border {{ 'border-green-200' if result.lh_seo >= 90 else 'border-orange-200' if result.lh_seo >= 50 else 'border-red-200' }}">
+                <p class="text-xs font-semibold text-slate-500 mb-1 uppercase">SEO</p>
+                <p class="text-2xl font-bold {{ 'text-green-600' if result.lh_seo >= 90 else 'text-orange-500' if result.lh_seo >= 50 else 'text-red-600' }}">{{ result.lh_seo }}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Issues Table -->
     {% if result.issues %}
