@@ -199,7 +199,19 @@ async def _batch_run(urls: list[str], workers: int, no_lh: bool) -> list[AuditRe
 
 
 def _save(r: AuditResult, path: Path) -> None:
+    from urllib.parse import urlparse
     from audit.core.exporter import export_csv, export_html, export_pdf
+    
+    domain = urlparse(r.url).netloc.replace("www.", "")
+    
+    # Default to reports/ directory if none specified
+    if path.parent == Path("") or path.parent == Path("."):
+        path = Path("reports") / path
+        
+    # Prefix filename with domain
+    path = path.parent / f"{domain}_{path.name}"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    
     ext = path.suffix.lower()
     if ext == ".csv":
         export_csv([r], path)
@@ -215,10 +227,16 @@ def _save(r: AuditResult, path: Path) -> None:
 
 def _save_batch(results: list[AuditResult], path: Path) -> None:
     from audit.core.exporter import export_csv
+    
+    if path.parent == Path("") or path.parent == Path("."):
+        path = Path("reports") / path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    
     if str(path).endswith(".json"):
         path.write_text(json.dumps([r.to_dict() for r in results], indent=2))
     else:
         export_csv(results, path)
+    rprint(f"[dim]Saved batch → {path}[/dim]")
 
 
 
