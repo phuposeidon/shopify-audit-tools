@@ -37,8 +37,9 @@ def audit_url(
     device: Annotated[str, typer.Option(help="mobile | desktop")] = "mobile",
     no_lighthouse: Annotated[bool, typer.Option("--no-lighthouse")] = False,
     no_browser: Annotated[bool, typer.Option("--no-browser")] = False,
-    out: Annotated[Optional[Path], typer.Option(help="Save .json or .csv")] = None,
+    out: Annotated[Optional[Path], typer.Option(help="Save .json, .csv, .html, or .pdf")] = None,
     output_json: Annotated[bool, typer.Option("--json")] = False,
+
     quiet: Annotated[bool, typer.Option("--quiet", "-q")] = False,
 ) -> None:
     """Audit a single product URL for AI readiness."""
@@ -198,25 +199,27 @@ async def _batch_run(urls: list[str], workers: int, no_lh: bool) -> list[AuditRe
 
 
 def _save(r: AuditResult, path: Path) -> None:
-    if str(path).endswith(".csv"):
-        _save_batch([r], path)
+    from audit.core.exporter import export_csv, export_html, export_pdf
+    ext = path.suffix.lower()
+    if ext == ".csv":
+        export_csv([r], path)
+    elif ext == ".html":
+        export_html(r, path)
+    elif ext == ".pdf":
+        import asyncio
+        asyncio.run(export_pdf(r, path))
     else:
         path.write_text(json.dumps(r.to_dict(), indent=2))
     rprint(f"[dim]Saved → {path}[/dim]")
 
 
 def _save_batch(results: list[AuditResult], path: Path) -> None:
+    from audit.core.exporter import export_csv
     if str(path).endswith(".json"):
         path.write_text(json.dumps([r.to_dict() for r in results], indent=2))
     else:
-        with open(path, "w", newline="") as f:
-            w = csv.writer(f)
-            w.writerow(["url", "platform", "score", "grade", "cwv", "discover",
-                        "schema", "content", "policy", "bonus", "bot_blocked", "lcp_ms", "cls"])
-            for r in results:
-                w.writerow([r.url, r.platform.platform, r.score.total, r.score.grade,
-                            r.score.cwv, r.score.discover, r.score.schema, r.score.content,
-                            r.score.policy, r.score.bonus, r.bot_blocked, r.cwv.lcp, r.cwv.cls])
+        export_csv(results, path)
+
 
 
 def main() -> None:
